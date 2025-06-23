@@ -1,0 +1,69 @@
+{
+    "bohb_lstm_regressor": {
+        "n_cells": [64, 32],
+        "batch_size": 32,
+        "n_layers_per_lstm": 1,
+        "dropout": 0.1,
+        "n_epochs": 100,
+        "learning_rate": 0.001,
+        "weight_decay": 0.0,
+        "warm_start": false,
+        "warm_start_n_epoch": 0.0025,
+        "lowest_train_loss": true,
+        "validation_fraction": 0.1,
+        "verbose": true
+    },
+    "lstm": {
+        "input_dim": 21,
+        "output_dim": 2,
+        "n_cells": [64, 32],
+        "batch_size": 32,
+        "n_layers_per_lstm": 1,
+        "dropout": 0.1,
+        "n_epochs": 100,
+        "learning_rate": 0.001,
+        "weight_decay": 0.0,
+        "warm_start": false,
+        "warm_start_n_epoch": 0.0025,
+        "lowest_train_loss": true,
+        "validation_fraction": 0.1,
+        "verbose": true
+    },
+    "gwn": {
+        "model_params": {
+            "input_dim": 2,
+            "output_dim": 2,
+            "num_nodes": 30,
+            "dropout": 0.3,
+            "gcn_bool": true,
+            "adapt_adj": true,
+            "hidden_dim": 32,
+            "residual_channels": 32,
+            "dilation_channels": 32,
+            "skip_channels": 256,
+            "end_channels": 512,
+            "kernel_size": 2,
+            "blocks": 4,
+            "layers": 2
+        },
+        "training_params": {
+            "device": "cuda",
+            "learning_rate": 0.001,
+            "prediction_horizon": 5,
+            "batch_size": 64,
+            "n_epochs": 100,
+            "validation_fraction": 0.1,
+            "test_fraction": 0.2
+        },
+        "dataset_params": {
+            "jse": {
+                "window_size": 12,
+                "target_name": "trend",
+                "local_window": 12,
+                "raw_data_filename": "datasets/JSE.csv",
+                "n_segments": 9000,
+                "feature_type": "trend"
+            }
+        }
+    }
+} 
