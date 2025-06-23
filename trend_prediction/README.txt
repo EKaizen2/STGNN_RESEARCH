@@ -9,4 +9,6 @@ Using lstm model with point data features: python execute.py --dataset jse --fea
 
 
 STGNN:
-GWN with trend features: python -m stgnn.run.stgnn_main --dataset jse --feature trend --algorithm gwn --nruns 1 --verbose
+GWN with trend features: python -m stgnn.run.stgnn_main --dataset jse --feature trend --algorithm gwn --nruns 1 --verbose --temporary
+
+GWN with pointdata features: python -m stgnn.run.stgnn_main --dataset jse --feature pointdata --algorithm gwn --nruns 1 --verbose --temporary

@@ -21,9 +21,8 @@ def process_stgnn_data(raw_data, feature_type='trend', window_size=21, n_segment
         Y: [num_samples, num_nodes, 2] (slope, duration)
     """
     from preprocessing.features import trend, movement_direction
-    from preprocessing.util import sliding_window
-    all_X = []
-    all_Y = []
+    all_trend_features = []  # For Y (always slope, duration)
+    all_X_features = []      # For X (depends on feature_type)
     for column in raw_data.columns:
         node_data = raw_data[column].values
         # Always compute trends for Y
@@ -31,26 +30,41 @@ def process_stgnn_data(raw_data, feature_type='trend', window_size=21, n_segment
                             duration=None, return_segment=False, overlap=False,
                             overlap_fraction=0.0, pla_algorithm='bottom', slope_estimator='regression',
                             error=False, max_error=False, n_segments=n_segments)
-        trend_features = node_trends[['strength', 'duration']].values
+        trend_features = node_trends[['strength', 'duration']].values  # [timesteps, 2]
+        all_trend_features.append(trend_features)
         # X feature extraction
         if feature_type == 'trend':
-            node_X = sliding_window(trend_features, window_size)  # [samples, window, 2]
+            all_X_features.append(trend_features)  # [timesteps, 2]
         elif feature_type == 'pointdata':
-            node_X = sliding_window(node_data.reshape(-1, 1), window_size)  # [samples, window, 1]
+            all_X_features.append(node_data.reshape(-1, 1))  # [timesteps, 1]
         elif feature_type == 'strength':
-            node_X = sliding_window(trend_features[:, [0]], window_size)  # [samples, window, 1]
+            all_X_features.append(trend_features[:, [0]])  # [timesteps, 1]
         elif feature_type == 'direction':
             directions = movement_direction(node_trends['strength'], n_classes=n_classes, lower=lower, upper=upper)
-            node_X = sliding_window(directions.reshape(-1, 1), window_size)  # [samples, window, 1]
+            all_X_features.append(directions.reshape(-1, 1))  # [timesteps, 1]
         else:
             raise ValueError(f"Unsupported feature_type: {feature_type}")
-        # Y is always next [slope, duration] after window
-        node_Y = trend_features[window_size-1:]  # [samples, 2]
-        all_X.append(node_X)
-        all_Y.append(node_Y)
-    # Stack nodes: [num_nodes, samples, window, features] -> [samples, num_nodes, window, features]
-    X = np.stack(all_X, axis=1)
-    Y = np.stack(all_Y, axis=1)
+    # Stack all nodes: [num_nodes, timesteps, features] -> [timesteps, num_nodes, features]
+    X_features = np.stack(all_X_features, axis=1)  # [timesteps, num_nodes, features]
+    trend_features_all = np.stack(all_trend_features, axis=1)  # [timesteps, num_nodes, 2]
+    # Debug: print shapes before windowing
+    print("X_features shape before windowing:", X_features.shape)
+    print("trend_features_all shape before windowing:", trend_features_all.shape)
+    # Ensure same number of timesteps before windowing
+    min_timesteps = min(X_features.shape[0], trend_features_all.shape[0])
+    if X_features.shape[0] != trend_features_all.shape[0]:
+        print(f"Trimming base arrays to {min_timesteps} timesteps for alignment.")
+    X_features = X_features[:min_timesteps]
+    trend_features_all = trend_features_all[:min_timesteps]
+    # Create windows and targets using STGNN utils
+    X = create_stgnn_windows(X_features, window_size)  # [samples, num_nodes, window_size, features]
+    Y = create_stgnn_targets(trend_features_all, window_size)  # [samples, num_nodes, 2]
+    # Ensure X and Y have the same number of samples
+    min_samples = min(X.shape[0], Y.shape[0])
+    if X.shape[0] != Y.shape[0]:
+        print(f"Trimming windowed arrays to {min_samples} samples for alignment.")
+    X = X[:min_samples]
+    Y = Y[:min_samples]
     # Save if requested
     if save_dir is not None:
         os.makedirs(save_dir, exist_ok=True)

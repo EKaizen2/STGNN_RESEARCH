@@ -7,7 +7,7 @@ warnings.warn = warn
 import json
 from preprocessing.preproprecessor import to_supervise
 from datasets.loader import load_data
-#from autotrend.lstm.bohb_lstm_classifier import BOHBLSTMClassifier
+#from models.lstm.bohb_lstm_classifier import BOHBLSTMClassifier
 from models.bohb_lstm_regressor import BOHBLSTMRegressor
 from models.gwn_trend import GWNTrendPredictor
 from sklearn.svm import SVC, SVR

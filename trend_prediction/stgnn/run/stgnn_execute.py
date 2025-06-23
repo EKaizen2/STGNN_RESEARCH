@@ -32,6 +32,8 @@ def run_stgnn(X=None, Y=None, read_data=True, raw_data=None, trends=None, raw_da
     Run STGNN models with their specific preprocessing and evaluation procedures.
     Handles multivariate time series where each column represents a node in the graph.
     """
+    processed_data_dir = 'stgnn/processed_data'
+    processed_data_file = os.path.join(processed_data_dir, f'stgnn_processed_data_{feature_type}_{n_segments}_segments.pkl')
     if X is None and Y is None:
         if read_data:
             # Load raw data - now loading all columns for multivariate analysis
@@ -39,14 +41,8 @@ def run_stgnn(X=None, Y=None, read_data=True, raw_data=None, trends=None, raw_da
                                main_time_series=main_time_series, na_values=na_values,
                                header=header, main_only=main_only, separator=separator,
                                fill_na_method=fill_na_method)
-            
             if not isinstance(raw_data, pd.DataFrame):
                 raise ValueError("Raw data must be a pandas DataFrame with multiple columns")
-
-            # Check if preprocessed data exists
-            processed_data_dir = 'stgnn/processed_data'
-            processed_data_file = os.path.join(processed_data_dir, f'stgnn_processed_data_{feature_type}_{n_segments}_segments.pkl')
-            
             if os.path.exists(processed_data_file):
                 if verbose:
                     print(f"Loading preprocessed data from {processed_data_file}")
@@ -58,8 +54,8 @@ def run_stgnn(X=None, Y=None, read_data=True, raw_data=None, trends=None, raw_da
                         print(f"Loaded data shapes - X: {X.shape}, Y: {Y.shape}")
             else:
                 if verbose:
-                    print("Preprocessed data not found. Processing data...")
-                # Process data using STGNN-specific preprocessing
+                    print("Preprocessed data not found. Processing data and saving...")
+                from stgnn.preprocessing.stgnn_preprocessor import to_stgnn_supervise
                 X, Y = to_stgnn_supervise(raw_data=raw_data,
                                          feature_type=feature_type,
                                          window_size=window_size,
@@ -67,17 +63,20 @@ def run_stgnn(X=None, Y=None, read_data=True, raw_data=None, trends=None, raw_da
                                          n_classes=n_classes,
                                          lower=lower,
                                          upper=upper,
-                                         local_window=local_window)
-
+                                         local_window=local_window,
+                                         save_dir=processed_data_dir)
+                if verbose:
+                    print(f"Processed and saved data to {processed_data_file}")
+                    print(f"Processed data shapes - X: {X.shape}, Y: {Y.shape}")
     # Print shapes for debugging
     if verbose:
         print("\nData shapes before model initialization:")
         print(f"X shape: {X.shape}")  # Should be [batch_size, num_nodes, num_timesteps, num_features]
         print(f"Y shape: {Y.shape}")  # Should be [batch_size, num_nodes, output_dim]
+        print(f"X dtype: {X.dtype}, Y dtype: {Y.dtype}")
 
-    # Only override data-dependent parameters if not explicitly set
-    if input_dim is None:
-        input_dim = X.shape[3]  # Number of features
+    # Always adapt input_dim to X.shape[3]
+    input_dim = X.shape[3]
     if output_dim is None:
         output_dim = 2  # Always predict [slope, duration]
     if num_nodes is None:
@@ -91,6 +90,11 @@ def run_stgnn(X=None, Y=None, read_data=True, raw_data=None, trends=None, raw_da
     if Y.shape[2] != output_dim:
         raise ValueError(f"Output dimension {Y.shape[2]} does not match model output_dim {output_dim}")
 
+    # Debug: print shapes before splitting
+    if verbose:
+        print(f"\nX shape before splitting: {X.shape}")
+        print(f"Y shape before splitting: {Y.shape}")
+
     # Split data into train, validation, and test sets
     n_samples = len(X)
     train_end = int((1 - validation_fraction - test_fraction) * n_samples)
@@ -103,11 +107,11 @@ def run_stgnn(X=None, Y=None, read_data=True, raw_data=None, trends=None, raw_da
     X_test = X[val_end:]
     Y_test = Y[val_end:]
 
+    # Debug: print shapes after splitting
     if verbose:
-        print("\nData split sizes:")
-        print(f"Train: {len(X_train)} samples")
-        print(f"Validation: {len(X_val)} samples")
-        print(f"Test: {len(X_test)} samples")
+        print(f"\nTrain: X_train {X_train.shape}, Y_train {Y_train.shape}")
+        print(f"Validation: X_val {X_val.shape}, Y_val {Y_val.shape}")
+        print(f"Test: X_test {X_test.shape}, Y_test {Y_test.shape}")
 
     # Create model parameters dictionary
     model_params = {
@@ -161,6 +165,13 @@ def run_stgnn(X=None, Y=None, read_data=True, raw_data=None, trends=None, raw_da
     val_pred = model.predict(X_val)
     test_pred = model.predict(X_test)
 
+    # Debug: print prediction shapes
+    if verbose:
+        print(f"\nPrediction shapes:")
+        print(f"train_pred: {train_pred.shape}, Y_train: {Y_train.shape}")
+        print(f"val_pred: {val_pred.shape}, Y_val: {Y_val.shape}")
+        print(f"test_pred: {test_pred.shape}, Y_test: {Y_test.shape}")
+
     # Calculate metrics for each set
     from stgnn.evaluation.stgnn_metrics import calculate_rmse, calculate_mae, calculate_mape
 
@@ -201,7 +212,14 @@ def run_stgnn(X=None, Y=None, read_data=True, raw_data=None, trends=None, raw_da
             'test': test_pred
         }
     }
-    
+
+    # Safely clear GPU memory after all computation is done
+    import gc
+    import torch
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
     return results
 
 def normalise_parameters(default_params, config):

@@ -5,7 +5,7 @@ from stgnn.preprocessing.stgnn_data_processor import process_stgnn_data, load_st
 from stgnn.utils.stgnn_utils import normalize_4d_array, normalize_3d_array
 import pandas as pd
 
-def to_stgnn_supervise(raw_data=None, feature_type='trend', window_size=21, n_segments=10015, n_classes=3, lower=-0.5, upper=0.55, local_window=21):
+def to_stgnn_supervise(raw_data=None, feature_type='trend', window_size=21, n_segments=10015, n_classes=3, lower=-0.5, upper=0.55, local_window=21, save_dir='stgnn/processed_data'):
     """
     Preprocess data for STGNN models, supporting multiple feature types.
     Args:
@@ -16,6 +16,7 @@ def to_stgnn_supervise(raw_data=None, feature_type='trend', window_size=21, n_se
         n_classes: for direction discretization
         lower, upper: for direction binning
         local_window: for local data if needed
+        save_dir: directory to save processed data (default: 'stgnn/processed_data')
     Returns:
         X: [num_samples, num_nodes, window_size, num_features]
         Y: [num_samples, num_nodes, 2] (slope, duration)
@@ -30,7 +31,8 @@ def to_stgnn_supervise(raw_data=None, feature_type='trend', window_size=21, n_se
         n_classes=n_classes,
         lower=lower,
         upper=upper,
-        local_window=local_window
+        local_window=local_window,
+        save_dir=save_dir
     )
     X = normalize_4d_array(X)
     Y = normalize_3d_array(Y)
