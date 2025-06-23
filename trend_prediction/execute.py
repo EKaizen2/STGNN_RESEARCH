@@ -1,8 +1,8 @@
 from os import path, remove, makedirs
 import numpy as np
-from trend_prediction.run.execute import run as executer
+from run.execute import run as executer
 from pandas import DataFrame
-from trend_prediction.specs import parameters as generic_parameters
+from specs import parameters as generic_parameters
 from copy import deepcopy
 import sys
 import click
